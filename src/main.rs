@@ -37,6 +37,18 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[command(name = "git-where", bin_name = "git-where")]
 #[command(about = "Git extension for navigating repos and worktrees")]
 #[command(disable_help_flag = true)]
+#[command(after_long_help = "\
+Getting started:
+  1. Add to your shell config (~/.zshrc, ~/.bashrc, etc.):
+       eval \"$(git where env)\"
+
+  2. Track repos you work in:
+       git where --add-repo /path/to/repo
+     
+     This defines shell functions: jp, jd, jr, jbr
+
+  3. (Optional) Customize the worktree path template:
+       git config --global where.worktree-path '{repo_path}.worktrees/{branch_sanitized}'")]
 struct Cli {
     /// Add a repo to the tracked list (defaults to current repo if no path given)
     #[arg(long, value_name = "PATH", num_args = 0..=1, default_missing_value = "")]
@@ -79,8 +91,8 @@ enum Commands {
         /// Optional search query (matches against repo directory name)
         query: Option<String>,
     },
-    /// Print shell integration and setup instructions
-    Setup,
+    /// Output shell functions for eval (e.g. eval "$(git where env)")
+    Env,
 }
 
 // ── Frecency history ─────────────────────────────────────────────────────
@@ -251,7 +263,7 @@ fn load_tracked_repos() -> Result<Vec<PathBuf>, String> {
         .map(PathBuf::from)
         .collect();
     if repos.is_empty() {
-        return Err("No repos configured. Run:\n  git where --add-repo [path]".to_string());
+        return Err("No repos tracked yet. Run `git where help` to get started.".to_string());
     }
     Ok(repos)
 }
@@ -292,7 +304,7 @@ fn handle_remove_repo(raw: &str) {
 fn handle_list_repos() {
     let repos = git_config_get_all(CONFIG_KEY_REPO);
     if repos.is_empty() {
-        eprintln!("No repos configured. Run: git where --add-repo [path]");
+        eprintln!("No repos tracked yet. Run `git where help` to get started.");
         std::process::exit(1);
     }
     for r in repos {
@@ -782,64 +794,20 @@ fn prompt_select_repo(repos: &[PathBuf], header: &str) -> Option<PathBuf> {
     run_fzf(&items, None, Some(header)).ok().map(PathBuf::from)
 }
 
-// ── setup ───────────────────────────────────────────────────────────────
+// ── env ─────────────────────────────────────────────────────────────────
 
-fn handle_setup() {
-    let repos = git_config_get_all(CONFIG_KEY_REPO);
-    let has_repos = !repos.is_empty();
-
-    eprintln!("git-where setup");
-    eprintln!("===============");
-    eprintln!();
-
-    // 1. Repo tracking status
-    eprintln!("1. Track repos");
-    eprintln!();
-    if has_repos {
-        eprintln!("   Tracked repos:");
-        for r in &repos {
-            eprintln!("     {}", r);
-        }
-        eprintln!();
-        eprintln!("   To add more:  git where --add-repo /path/to/repo");
-    } else {
-        eprintln!("   No repos tracked yet. Add repos you work in:");
-        eprintln!();
-        eprintln!("     cd ~/Code/some-repo && git where --add-repo");
-        eprintln!("     git where --add-repo /path/to/another-repo");
-    }
-    eprintln!();
-
-    // 2. Shell integration
-    eprintln!("2. Shell integration");
-    eprintln!();
-    eprintln!("   Add these functions to your shell config (~/.zshrc, ~/.bashrc, etc.):");
-    eprintln!();
-    eprintln!("     # Jump to a tracked file's directory");
-    eprintln!("     jp() {{ local p; p=\"$(git where path \"$1\")\" || return; cd \"$(dirname \"$p\")\"; }}");
-    eprintln!();
-    eprintln!("     # Jump to a directory in the current repo (no args = repo root)");
-    eprintln!("     jd() {{ local d; d=\"$(git where dir \"$1\")\" || return; cd \"$d\"; }}");
-    eprintln!();
-    eprintln!("     # Jump to a tracked repo by name");
-    eprintln!("     jr() {{ local d; d=\"$(git where repo \"$1\")\" || return; cd \"$d\"; }}");
-    eprintln!();
-    eprintln!("     # Jump to (or create) a worktree for a branch");
-    eprintln!("     jbr() {{ local d; d=\"$(git where checkout --create \"$1\")\" || return; cd \"$d\"; }}");
-    eprintln!();
-
-    // 3. Optional: worktree path template
-    let wt_path = git_config_get(CONFIG_KEY_WORKTREE_PATH);
-    eprintln!("3. Worktree path template (optional)");
-    eprintln!();
-    match wt_path {
-        Some(ref t) => eprintln!("   Current: {}", t),
-        None => eprintln!("   Using default: {}", DEFAULT_WORKTREE_PATH),
-    }
-    eprintln!();
-    eprintln!("   To customize:");
-    eprintln!("     git config --global where.worktree-path '{{repo_path}}.worktrees/{{branch_sanitized}}'");
-    eprintln!();
+fn handle_env() {
+    println!("# Jump to a tracked file's directory");
+    println!("jp() {{ local p; p=\"$(git where path \"$1\")\" || return; cd \"$(dirname \"$p\")\"; }}");
+    println!();
+    println!("# Jump to a directory in the current repo (no args = repo root)");
+    println!("jd() {{ local d; d=\"$(git where dir \"$1\")\" || return; cd \"$d\"; }}");
+    println!();
+    println!("# Jump to a tracked repo by name");
+    println!("jr() {{ local d; d=\"$(git where repo \"$1\")\" || return; cd \"$d\"; }}");
+    println!();
+    println!("# Jump to (or create) a worktree for a branch");
+    println!("jbr() {{ local d; d=\"$(git where checkout --create \"$1\")\" || return; cd \"$d\"; }}");
 }
 
 // ── main ─────────────────────────────────────────────────────────────────
@@ -863,8 +831,8 @@ fn main() {
 
     // Subcommand dispatch.
     match cli.command {
-        Some(Commands::Setup) => {
-            handle_setup();
+        Some(Commands::Env) => {
+            handle_env();
         }
         Some(Commands::Checkout { branch, create }) => {
             handle_checkout(&branch, create);
@@ -878,7 +846,7 @@ fn main() {
         Some(Commands::Repo { query }) => {
             let repos = git_config_get_all(CONFIG_KEY_REPO);
             if repos.is_empty() {
-                eprintln!("No repos tracked. Run `git where --add-repo` to add one.");
+                eprintln!("No repos tracked yet. Run `git where help` to get started.");
                 std::process::exit(1);
             }
             handle_repo_selection(repos, query);

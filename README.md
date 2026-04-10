@@ -46,31 +46,16 @@ Git automatically discovers `git-where` as `git where` (no registration needed â
 
 ### 2. Set up repos and shell integration
 
-Run the setup command for step-by-step instructions:
-
-```sh
-git where setup
-```
-
-This shows your tracked repos, shell functions to add, and worktree configuration â€” everything you need to get started.
-
-### Quick start (manual)
-
-If you prefer to set things up by hand:
-
 ```sh
 # Track the repos you work in
 cd ~/Code/some-monorepo && git where --add-repo
 git where --add-repo /path/to/another-repo
 
-# Add shell functions to ~/.zshrc or ~/.bashrc
-jp() { local p; p="$(git where path "$1")" || return; cd "$(dirname "$p")"; }
-jd() { local d; d="$(git where dir "$1")" || return; cd "$d"; }  # no args = repo root
-jr() { local d; d="$(git where repo "$1")" || return; cd "$d"; }
-jbr() { local d; d="$(git where checkout --create "$1")" || return; cd "$d"; }
+# Add to ~/.zshrc or ~/.bashrc
+eval "$(git where env)"
 ```
 
-`git where` prints paths to stdout. The shell functions capture the path and `cd` into it.
+This defines shell functions (`jp`, `jd`, `jr`, `jbr`) that call `git where`, capture the path, and `cd` into it.
 
 ## Usage
 
