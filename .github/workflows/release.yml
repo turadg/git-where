@@ -66,3 +66,14 @@ jobs:
       - run: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  notify-tap:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: turadg/homebrew-tap
+          event-type: update-formula
+          client-payload: '{"version": "${{ github.ref_name }}"}'
