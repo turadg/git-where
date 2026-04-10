@@ -613,6 +613,22 @@ fn derive_directories(files: &[String]) -> Vec<String> {
     result
 }
 
+/// Matches a query against a candidate using hyphen-segment prefix matching.
+/// Each `-`-separated segment of the query must be a prefix of the corresponding
+/// segment in the candidate. E.g. `p-c` matches `portfolio-contract`.
+/// Falls back to substring matching when the query has no hyphens and is a single segment.
+fn matches_abbreviated(query: &str, candidate: &str) -> bool {
+    let q_parts: Vec<&str> = query.split('-').collect();
+    let c_parts: Vec<&str> = candidate.split('-').collect();
+    if q_parts.len() > c_parts.len() {
+        return false;
+    }
+    q_parts
+        .iter()
+        .zip(c_parts.iter())
+        .all(|(q, c)| c.starts_with(q))
+}
+
 fn handle_repo_selection(repos: Vec<String>, query: Option<String>) {
     let query_lower = query.as_ref().map(|q| q.to_lowercase());
 
@@ -624,7 +640,7 @@ fn handle_repo_selection(repos: Vec<String>, query: Option<String>) {
                     .file_name()
                     .map(|n| n.to_string_lossy().to_lowercase())
                     .unwrap_or_default();
-                name.contains(q)
+                matches_abbreviated(q, &name)
             } else {
                 true
             }
@@ -666,7 +682,7 @@ fn handle_selection(
             if let Some(ref q) = query_lower {
                 let path = Path::new(item);
                 if let Some(last_comp) = path.file_name() {
-                    last_comp.to_string_lossy().to_lowercase().contains(q)
+                    matches_abbreviated(q, &last_comp.to_string_lossy().to_lowercase())
                 } else {
                     false
                 }
@@ -1085,6 +1101,38 @@ mod tests {
         update_history(&mut h, "/p".to_string());
         update_history(&mut h, "/p".to_string());
         assert_eq!(h.entries["/p"].0, 2);
+    }
+
+    // ── matches_abbreviated ──────────────────────────────────────────
+
+    #[test]
+    fn abbreviated_single_segment_prefix() {
+        assert!(matches_abbreviated("port", "portfolio-contract"));
+    }
+
+    #[test]
+    fn abbreviated_multi_segment() {
+        assert!(matches_abbreviated("p-c", "portfolio-contract"));
+    }
+
+    #[test]
+    fn abbreviated_full_match() {
+        assert!(matches_abbreviated("portfolio-contract", "portfolio-contract"));
+    }
+
+    #[test]
+    fn abbreviated_no_match() {
+        assert!(!matches_abbreviated("x-c", "portfolio-contract"));
+    }
+
+    #[test]
+    fn abbreviated_too_many_segments() {
+        assert!(!matches_abbreviated("p-c-x", "portfolio-contract"));
+    }
+
+    #[test]
+    fn abbreviated_empty_query() {
+        assert!(matches_abbreviated("", "portfolio-contract"));
     }
 
     // ── refs_contain_branch (extracted from repo_has_branch) ────────
