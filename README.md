@@ -13,6 +13,8 @@ Copy a branch name from a PR, run `jbr feat/my-branch`, and you're `cd`'d into t
 
 When a query is ambiguous, `fzf` opens for interactive selection. When it's unique, the answer prints immediately.
 
+![Made with VHS](https://vhs.charm.sh/vhs-1llyibeIY4K78ycLAfYJx1.gif)
+
 ## Requirements
 
 - `git` on `PATH`
