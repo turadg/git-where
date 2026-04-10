@@ -758,7 +758,7 @@ fn handle_setup() {
     eprintln!("     # Jump to a tracked file's directory");
     eprintln!("     jp() {{ local p; p=\"$(git where path \"$1\")\" || return; cd \"$(dirname \"$p\")\"; }}");
     eprintln!();
-    eprintln!("     # Jump to a directory in the current repo");
+    eprintln!("     # Jump to a directory in the current repo (no args = repo root)");
     eprintln!("     jd() {{ local d; d=\"$(git where dir \"$1\")\" || return; cd \"$d\"; }}");
     eprintln!();
     eprintln!("     # Jump to (or create) a worktree for a branch");
@@ -814,6 +814,11 @@ fn main() {
         }
         Some(Commands::Dir { query }) => {
             let (repo_root, tracked_files) = load_repo_and_files();
+            if query.is_none() {
+                // No query → print repo root (so `jd` with no args jumps to root)
+                println!("{}", repo_root.display());
+                return;
+            }
             let history_path = get_history_file_path();
             let mut history = load_history(&history_path);
             let directories = derive_directories(&tracked_files);

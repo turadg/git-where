@@ -64,7 +64,7 @@ git where --add-repo /path/to/another-repo
 
 # Add shell functions to ~/.zshrc or ~/.bashrc
 jp() { local p; p="$(git where path "$1")" || return; cd "$(dirname "$p")"; }
-jd() { local d; d="$(git where dir "$1")" || return; cd "$d"; }
+jd() { local d; d="$(git where dir "$1")" || return; cd "$d"; }  # no args = repo root
 jbr() { local d; d="$(git where checkout --create "$1")" || return; cd "$d"; }
 ```
 
