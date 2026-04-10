@@ -1,12 +1,14 @@
 # git-where
 
-A Git extension for navigating repos and managing worktrees.
+A Git extension for navigating repos and worktrees. Built for developers juggling many worktrees across multiple repos.
 
-`git where` answers three questions fast:
+Copy a branch name from a PR, run `jbr feat/my-branch`, and you're `cd`'d into the right worktree — no matter which repo it lives in or which terminal you're in.
 
-1. **"Where is that file?"** — `git where path <query>` resolves a tracked filename to an absolute path, ranked by frecency.
-2. **"Where is that directory?"** — `git where dir <query>` does the same for directories.
-3. **"I just got assigned a PR — where should I work on it?"** — `git where checkout <branch>` finds which of your tracked repos owns the branch and either jumps to its existing worktree or creates one.
+`git where` makes it easy to jump to:
+
+1. **Branch checkout** — `git where checkout <branch>` finds which repo owns a branch and jumps to its worktree (or creates one with `--create`).
+2. **File in a repo** — `git where path <query>` resolves a tracked filename to an absolute path, ranked by frecency.
+3. **Directory in a repo** — `git where dir <query>` does the same for directories.
 
 When a query is ambiguous, `fzf` opens for interactive selection. When it's unique, the answer prints immediately.
 
@@ -14,21 +16,30 @@ When a query is ambiguous, `fzf` opens for interactive selection. When it's uniq
 
 - `git` on `PATH`
 - `fzf` on `PATH` (for interactive selection when multiple matches exist)
+
 ## Installation
 
 ### 1. Install
+
+**Homebrew (macOS):**
+
+```sh
+brew install turadg/tap/git-where
+```
+
+**Cargo:**
 
 ```sh
 cargo install git-where
 ```
 
-Or from a local checkout:
+**From source:**
 
 ```sh
 cargo install --path .
 ```
 
-Either way, this puts `git-where` into `~/.cargo/bin`. Git automatically discovers it as `git where` (no registration needed — git searches `PATH` for `git-<subcommand>` executables).
+Git automatically discovers `git-where` as `git where` (no registration needed — git searches `PATH` for `git-<subcommand>` executables).
 
 > **Note:** Use `git where help` for help (not `--help`). Git intercepts `--help` on extensions and tries to open a man page, which we don't ship. `help` is a subcommand that git passes through.
 
@@ -63,7 +74,7 @@ jbr() { local d; d="$(git where checkout --create "$1")" || return; cd "$d"; }
 
 ### `git where checkout <branch> [--create]`
 
-Designed for the moment you copy a branch name off a GitHub PR and want to start working on it.
+Copy a branch name from a PR page, paste it here, and you're in the right worktree.
 
 1. Searches your tracked repos for one that has the branch (locally or in remote-tracking refs).
 2. If exactly one repo has it: that's the answer.
