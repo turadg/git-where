@@ -1,6 +1,6 @@
 [package]
 name = "git-where"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "Git extension for navigating repos and worktrees — find files, directories, and branches across projects with frecency-ranked fuzzy selection"
 license = "MIT"
