@@ -6,6 +6,7 @@
 //! - `git where checkout <branch>` : Find or create a worktree for a branch.
 //! - `git where path [query]`      : Find a tracked file and print its absolute path.
 //! - `git where dir [query]`       : Find a directory and print its absolute path.
+//! - `git where repo [query]`      : Jump to a tracked repo by name.
 //!
 //! ## Repo management (via git config):
 //! - `git where --add-repo [path]`    : Track a repo (defaults to current).
@@ -71,6 +72,11 @@ enum Commands {
     /// Find a directory containing tracked files and print its absolute path
     Dir {
         /// Optional search query (matches against directory name only)
+        query: Option<String>,
+    },
+    /// Jump to a tracked repo by name
+    Repo {
+        /// Optional search query (matches against repo directory name)
         query: Option<String>,
     },
     /// Print shell integration and setup instructions
@@ -607,6 +613,44 @@ fn derive_directories(files: &[String]) -> Vec<String> {
     result
 }
 
+fn handle_repo_selection(repos: Vec<String>, query: Option<String>) {
+    let query_lower = query.as_ref().map(|q| q.to_lowercase());
+
+    let candidates: Vec<_> = repos
+        .into_iter()
+        .filter(|repo_path| {
+            if let Some(ref q) = query_lower {
+                let name = Path::new(repo_path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_lowercase())
+                    .unwrap_or_default();
+                name.contains(q)
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if candidates.is_empty() {
+        eprintln!("No tracked repo matches that query.");
+        std::process::exit(1);
+    }
+
+    let selected = if candidates.len() == 1 {
+        candidates[0].clone()
+    } else {
+        match run_fzf(&candidates, query.as_deref(), Some("Select a repo")) {
+            Ok(sel) => sel,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    };
+
+    println!("{}", selected);
+}
+
 fn handle_selection(
     items: Vec<String>,
     query: Option<String>,
@@ -761,6 +805,9 @@ fn handle_setup() {
     eprintln!("     # Jump to a directory in the current repo (no args = repo root)");
     eprintln!("     jd() {{ local d; d=\"$(git where dir \"$1\")\" || return; cd \"$d\"; }}");
     eprintln!();
+    eprintln!("     # Jump to a tracked repo by name");
+    eprintln!("     jr() {{ local d; d=\"$(git where repo \"$1\")\" || return; cd \"$d\"; }}");
+    eprintln!();
     eprintln!("     # Jump to (or create) a worktree for a branch");
     eprintln!("     jbr() {{ local d; d=\"$(git where checkout --create \"$1\")\" || return; cd \"$d\"; }}");
     eprintln!();
@@ -811,6 +858,14 @@ fn main() {
             let history_path = get_history_file_path();
             let mut history = load_history(&history_path);
             handle_selection(tracked_files, query, &repo_root, &mut history, &history_path);
+        }
+        Some(Commands::Repo { query }) => {
+            let repos = git_config_get_all(CONFIG_KEY_REPO);
+            if repos.is_empty() {
+                eprintln!("No repos tracked. Run `git where --add-repo` to add one.");
+                std::process::exit(1);
+            }
+            handle_repo_selection(repos, query);
         }
         Some(Commands::Dir { query }) => {
             let (repo_root, tracked_files) = load_repo_and_files();

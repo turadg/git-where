@@ -9,6 +9,7 @@ Copy a branch name from a PR, run `jbr feat/my-branch`, and you're `cd`'d into t
 1. **Branch checkout** — `git where checkout <branch>` finds which repo owns a branch and jumps to its worktree (or creates one with `--create`).
 2. **File in a repo** — `git where path <query>` resolves a tracked filename to an absolute path, ranked by frecency.
 3. **Directory in a repo** — `git where dir <query>` does the same for directories.
+4. **Repo by name** — `git where repo <query>` finds a tracked repo by its directory name.
 
 When a query is ambiguous, `fzf` opens for interactive selection. When it's unique, the answer prints immediately.
 
@@ -65,6 +66,7 @@ git where --add-repo /path/to/another-repo
 # Add shell functions to ~/.zshrc or ~/.bashrc
 jp() { local p; p="$(git where path "$1")" || return; cd "$(dirname "$p")"; }
 jd() { local d; d="$(git where dir "$1")" || return; cd "$d"; }  # no args = repo root
+jr() { local d; d="$(git where repo "$1")" || return; cd "$d"; }
 jbr() { local d; d="$(git where checkout --create "$1")" || return; cd "$d"; }
 ```
 
@@ -89,7 +91,11 @@ Searches files tracked by `git ls-files` in the current repo. Matches against th
 
 ### `git where dir [query]`
 
-Same as `path`, but searches unique parent directories of tracked files.
+Same as `path`, but searches unique parent directories of tracked files. With no query, prints the repo root.
+
+### `git where repo [query]`
+
+Searches your tracked repos by directory name. Matches against the last path component (e.g., `monorepo` matches `/Users/you/Code/monorepo`). If exactly one matches, prints its path. If multiple match, opens `fzf`. No query opens `fzf` over all tracked repos.
 
 ### `git where --add-repo [path]`
 
